@@ -1,10 +1,8 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/router";
 import supabase from "../lib/supabaseClient";
-
 import HeroHeader from "@/components/ui/HeroHeader";
 import PracticeAreas from "@/components/ui/PracticeAreas";
-import WhyLegalChain from "@/components/ui/WhyLegalChain";
 import Footer from "@/components/ui/Footer";
 
 export default function HomePage() {
@@ -56,8 +54,6 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-
-        <WhyLegalChain />
         <Footer />
       </main>
     </div>
