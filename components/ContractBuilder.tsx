@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../lib/contractApi';
 import contractSchemas from '../src/config/contractSchemas';
 import JurisdictionSelector from './ui/JurisdictionSelector';
+import { stripMarkdownArtifacts } from '../lib/displayText';
 
 // Note: DOMPurify requires a window to initialize with JSDOM in SSR-free codepath.
 // We'll require it at runtime on the client only.
@@ -332,6 +333,41 @@ export default function ContractBuilder() {
     );
   };
 
+  const downloadAsPDF = async () => {
+    const element = document.getElementById('contract-preview');
+    if (!element) return;
+
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      await html2pdf()
+        .from(element)
+        .set({
+          margin: 0.5,
+          filename: `${String(selectedType || 'contract').replace(/\s+/g, '_')}_Contract.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {},
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+        })
+        .save();
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      setError('Failed to download PDF.');
+    }
+  };
+
+  const downloadAsTXT = () => {
+    const previewText = document.getElementById('contract-preview')?.innerText;
+    const text = stripMarkdownArtifacts(result?.text || previewText || result?.html || '');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${String(selectedType || 'contract').replace(/\s+/g, '_')}_Contract.txt`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const displayResultText = result?.text ? stripMarkdownArtifacts(result.text) : '';
+
   return (
     <div className="bg-white shadow rounded p-6 w-full max-w-4xl">
       <h2 className="text-xl font-semibold mb-4">Contract Builder</h2>
@@ -429,14 +465,33 @@ export default function ContractBuilder() {
           <div id="contract-preview" className="prose max-w-none">
             {/* sanitize */}
             {typeof window !== 'undefined' && createDOMPurify ? (
-              <div dangerouslySetInnerHTML={{ __html: createDOMPurify(window).sanitize(result.html) }} />
+              <div dangerouslySetInnerHTML={{ __html: createDOMPurify(window).sanitize(stripMarkdownArtifacts(result.html)) }} />
             ) : (
               <div>{result.html}</div>
             )}
           </div>
         ) : result?.text ? (
-          <pre id="contract-preview" className="whitespace-pre-wrap bg-gray-50 p-4 rounded">{result.text}</pre>
+          <pre id="contract-preview" className="whitespace-pre-wrap bg-gray-50 p-4 rounded">{displayResultText}</pre>
         ) : null}
+
+        {(result?.html || result?.text) && (
+          <div className="mt-4 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={downloadAsPDF}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={downloadAsTXT}
+              className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
+            >
+              Download TXT
+            </button>
+          </div>
+        )}
 
         {result?.references && result.references.length > 0 && (
           <div className="mt-4">

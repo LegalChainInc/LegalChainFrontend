@@ -1,5 +1,6 @@
 import React from 'react';
 import html2pdf from 'html2pdf.js';
+import { stripMarkdownArtifacts } from '../lib/displayText';
 
 type Props = {
   title?: string;
@@ -50,7 +51,7 @@ export default function DocumentPreviewModal({
     }
 
     try {
-      const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob([stripMarkdownArtifacts(textContent)], { type: 'text/plain;charset=utf-8' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'document.txt';
@@ -84,7 +85,7 @@ export default function DocumentPreviewModal({
         <h2 className="text-xl font-bold mb-4">{title}</h2>
 
         <div id={contentDomId} className="whitespace-pre-wrap text-sm text-gray-800">
-          {children ? children : textContent}
+          {children ? children : stripMarkdownArtifacts(textContent || '')}
         </div>
 
         <div className="mt-6 flex gap-3 justify-end">

@@ -5,6 +5,7 @@ import apiClient from '../lib/apiClient';
 import contractTypes from '../config/contractTypes';
 import contractSchemas from '../src/config/contractSchemas';
 import JurisdictionSelector from '../components/ui/JurisdictionSelector';
+import { stripMarkdownArtifacts } from '../lib/displayText';
 
 export default function ContractCreationPage() {
   const router = useRouter();
@@ -378,7 +379,7 @@ export default function ContractCreationPage() {
   };
 
   const downloadAsTXT = () => {
-    const blob = new Blob([contract], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([stripMarkdownArtifacts(contract)], { type: 'text/plain;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${contractType.replace(/\s+/g, '_')}_Contract.txt`;
