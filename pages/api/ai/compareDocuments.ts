@@ -1,83 +1,107 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import formidable from 'formidable';
-import { diffLines } from 'diff';
-import fs from 'fs';
+import type { NextApiRequest, NextApiResponse } from "next";
+import formidable, { File as FormidableFile } from "formidable";
+import fs from "fs";
 
 export const config = {
-  api: {
-    bodyParser: false, // Required for formidable to handle multipart/form-data
-  },
+  api: { bodyParser: false },
 };
 
-const parseForm = async (
-  req: NextApiRequest
-): Promise<{ original: Buffer; updated: Buffer }> => {
-  const form = formidable({ multiples: false });
+type ParsedUpload = {
+  baseline: FormidableFile;
+  compares: FormidableFile[];
+};
+
+function asSingle(file: FormidableFile | FormidableFile[] | undefined) {
+  if (!file) return undefined;
+  return Array.isArray(file) ? file[0] : file;
+}
+
+function asArray(file: FormidableFile | FormidableFile[] | undefined) {
+  if (!file) return [];
+  return Array.isArray(file) ? file : [file];
+}
+
+async function parseForm(req: NextApiRequest): Promise<ParsedUpload> {
+  const form = formidable({
+    multiples: true,
+    keepExtensions: true,
+    // Adjust if you expect big PDFs
+    maxFileSize: 50 * 1024 * 1024, // 50MB
+  });
 
   return new Promise((resolve, reject) => {
-    form.parse(req, (err, fields, files) => {
-      if (err) {
-        console.error('❌ Formidable parse error:', err);
-        return reject('Failed to parse form data');
+    form.parse(req, (err, _fields, files) => {
+      if (err) return reject(err);
+
+      // ✅ EXPECTED CLIENT KEYS:
+      // baselineFile: single
+      // compareFiles: multi (1..2)
+      const baseline = asSingle(files.baselineFile as any);
+      const compares = asArray(files.compareFiles as any);
+
+      if (!baseline?.filepath) {
+        return reject(new Error("Missing baselineFile upload"));
+      }
+      if (!compares.length || !compares[0]?.filepath) {
+        return reject(new Error("Missing compareFiles upload"));
       }
 
-      const originalFile = Array.isArray(files.original)
-        ? files.original[0]
-        : files.original;
-      const updatedFile = Array.isArray(files.updated)
-        ? files.updated[0]
-        : files.updated;
-
-      if (!originalFile?.filepath || !updatedFile?.filepath) {
-        console.error('⚠️ Missing file paths:', { originalFile, updatedFile });
-        return reject('Missing uploaded files');
-      }
-
-      try {
-        const original = fs.readFileSync(originalFile.filepath);
-        const updated = fs.readFileSync(updatedFile.filepath);
-        resolve({ original, updated });
-      } catch (readErr) {
-        console.error('📂 File read error:', readErr);
-        reject('Failed to read uploaded files');
-      }
+      resolve({ baseline, compares });
     });
   });
-};
+}
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+function fileToWebFile(f: FormidableFile) {
+  // Formidable writes uploads to disk; we read into a Buffer
+  const buf = fs.readFileSync(f.filepath);
+  const name = f.originalFilename || "upload";
+  const type = f.mimetype || "application/octet-stream";
+
+  // In Next API routes (Node 18+), File/Blob/FormData are provided by undici
+  return new File([buf], name, { type });
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
-    const { original, updated } = await parseForm(req);
+    const { baseline, compares } = await parseForm(req);
 
-    const originalText = original.toString('utf-8');
-    const updatedText = updated.toString('utf-8');
+    // ✅ Point this at your backend
+    // Example: http://localhost:5000
+    const backendBase = process.env.BACKEND_URL || "http://localhost:5000";
+    const backendUrl = `${backendBase}/api/ai/compareDocuments`;
 
-    const differences = diffLines(originalText, updatedText);
+    const fd = new FormData();
 
-    const summary = differences.map((part) => ({
-      type: part.added
-        ? 'addition'
-        : part.removed
-        ? 'deletion'
-        : 'unchanged',
-      content: part.value.trim(),
-    }));
+    // 🔁 IMPORTANT: field names MUST match your backend multer/controller keys.
+    // If backend expects originalFile/updatedFile instead, swap these:
+    // fd.append("originalFile", fileToWebFile(baseline));
+    // fd.append("updatedFile", fileToWebFile(compares[0]));
+    fd.append("baselineFile", fileToWebFile(baseline));
+    for (const c of compares.slice(0, 2)) fd.append("compareFiles", fileToWebFile(c));
 
-    res.status(200).json({
-      message: 'Comparison complete',
-      summary,
+    const upstream = await fetch(backendUrl, {
+      method: "POST",
+      body: fd,
+      // DO NOT set Content-Type manually; fetch will set the multipart boundary.
     });
-  } catch (err) {
-    console.error('🔥 Internal server error:', err);
-    res.status(500).json({
-      error: typeof err === 'string' ? err : 'Internal Server Error',
+
+    const text = await upstream.text();
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { raw: text };
+    }
+
+    return res.status(upstream.status).json(data);
+  } catch (err: any) {
+    console.error("compareDocuments proxy error:", err);
+    return res.status(400).json({
+      error: err?.message || "Failed to compare documents",
     });
   }
 }
