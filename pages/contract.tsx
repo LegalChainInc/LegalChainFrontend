@@ -364,18 +364,94 @@ export default function ContractCreationPage() {
   };
 
   const downloadAsPDF = async () => {
-    const element = document.getElementById('contract-preview');
-    if (!element) return;
+    if (!contract) return;
 
-    const html2pdf = (await import('html2pdf.js')).default;
+    // Use jsPDF's native text API so the PDF contains real vector text
+    // (selectable, searchable, and crisp at any zoom level) instead of a
+    // rasterized html2canvas screenshot.
+    const { jsPDF } = await import('jspdf');
 
-    html2pdf().from(element).set({
-      margin: 0.5,
-      filename: `${contractType.replace(/\s+/g, '_')}_Contract.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {},
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-    }).save();
+    const cleanText = stripMarkdownArtifacts(contract);
+
+    const doc = new jsPDF({
+      unit: 'in',
+      format: 'letter',
+      orientation: 'portrait',
+    });
+
+    const pageWidth = 8.5;
+    const pageHeight = 11;
+    const margin = 0.75;
+    const usableWidth = pageWidth - 2 * margin;
+    const bottomLimit = pageHeight - margin;
+
+    const bodySize = 11;
+    const headingSize = 13;
+    const bodyLineHeight = 0.18;
+    const headingLineHeight = 0.22;
+    const paragraphSpacing = 0.08;
+
+    let cursorY = margin;
+
+    const ensureSpace = (height: number) => {
+      if (cursorY + height > bottomLimit) {
+        doc.addPage();
+        cursorY = margin;
+      }
+    };
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(bodySize);
+
+    const lines = cleanText.split('\n');
+
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd();
+
+      // Horizontal rule (e.g. "---")
+      if (/^-{3,}$/.test(line.trim())) {
+        ensureSpace(0.15);
+        doc.setLineWidth(0.01);
+        doc.line(margin, cursorY + 0.05, pageWidth - margin, cursorY + 0.05);
+        cursorY += 0.15;
+        continue;
+      }
+
+      // Markdown-style headings (### Heading)
+      const headingMatch = line.match(/^#{1,6}\s+(.+)$/);
+      if (headingMatch) {
+        const headingText = headingMatch[1];
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(headingSize);
+        const wrapped = doc.splitTextToSize(headingText, usableWidth);
+        ensureSpace(paragraphSpacing + wrapped.length * headingLineHeight);
+        cursorY += paragraphSpacing;
+        for (const wrappedLine of wrapped) {
+          ensureSpace(headingLineHeight);
+          doc.text(wrappedLine, margin, cursorY, { baseline: 'top' });
+          cursorY += headingLineHeight;
+        }
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(bodySize);
+        continue;
+      }
+
+      // Blank line → paragraph spacing
+      if (line.trim() === '') {
+        cursorY += paragraphSpacing;
+        continue;
+      }
+
+      // Body text (with word wrap)
+      const wrapped = doc.splitTextToSize(line, usableWidth);
+      for (const wrappedLine of wrapped) {
+        ensureSpace(bodyLineHeight);
+        doc.text(wrappedLine, margin, cursorY, { baseline: 'top' });
+        cursorY += bodyLineHeight;
+      }
+    }
+
+    doc.save(`${contractType.replace(/\s+/g, '_')}_Contract.pdf`);
   };
 
   const downloadAsTXT = () => {
