@@ -64,6 +64,39 @@ export const contractSchemas: Record<string, any> = {
     { key:'purchasePrice', label:'Purchase Price', type:'text' },
     { key:'closingDate', label:'Closing Date', type:'date', optional:true }
   ] }
+  , MSA: {
+    key: 'MSA',
+    label: 'Master Service Agreement (MSA)',
+    fields: [
+      // ── Core service scope ──────────────────────────────────────────────
+      { key: 'serviceDescription',       label: 'Service Description',                       type: 'textarea',  placeholder: 'High-level description of services to be provided' },
+      { key: 'statementOfWorkRef',       label: 'Statement of Work Reference',               type: 'text',      placeholder: 'e.g. SOW-001 or "per executed SOW"' },
+      { key: 'deliverables',             label: 'Deliverables',                              type: 'repeatable', itemType: 'textarea', placeholder: 'Add each deliverable separately' },
+      // ── Payment ─────────────────────────────────────────────────────────
+      { key: 'paymentStructure',         label: 'Payment Structure',                         type: 'select',    options: ['Hourly', 'Fixed', 'Milestone'] },
+      { key: 'paymentTerms',             label: 'Payment Terms',                             type: 'textarea',  placeholder: 'e.g. Net 30; invoices due within 30 days; 1.5% monthly late fee' },
+      // ── Liability & indemnification ──────────────────────────────────────
+      { key: 'liabilityCap',             label: 'Liability Cap',                             type: 'select',    options: ['Total fees paid', '2x fees paid', 'Specific amount', 'Uncapped'] },
+      { key: 'indemnificationScope',     label: 'Indemnification Scope',                     type: 'textarea',  placeholder: 'e.g. Each party indemnifies for breach, gross negligence, wilful misconduct' },
+      // ── Confidentiality & IP ─────────────────────────────────────────────
+      { key: 'confidentialityTerm',      label: 'Confidentiality Term (post-termination)',   type: 'text',      placeholder: 'e.g. 3 years; indefinite for trade secrets' },
+      { key: 'ipOwnership',              label: 'IP Ownership',                              type: 'select',    options: ['Client-owns', 'Provider-owns', 'Joint'] },
+      // ── Contractor status ────────────────────────────────────────────────
+      { key: 'independentContractorStatus', label: 'Independent Contractor Status',         type: 'select',    options: ['Yes', 'No'] },
+      // ── Non-solicitation ─────────────────────────────────────────────────
+      { key: 'nonSolicitation',          label: 'Non-Solicitation Clause',                  type: 'textarea',  placeholder: 'e.g. 12-month post-termination; employees with direct material contact' },
+      // ── Termination ──────────────────────────────────────────────────────
+      { key: 'terminationNotice',        label: 'Termination Notice Period',                type: 'select',    options: ['15 days', '30 days', '60 days', '90 days'] },
+      { key: 'terminationFees',          label: 'Termination Fees / Wind-down Costs',       type: 'textarea',  placeholder: 'e.g. payment for work performed and non-cancellable commitments' },
+      // ── Dispute resolution & governing law ────────────────────────────────
+      { key: 'disputeResolutionMethod',  label: 'Dispute Resolution Method',                type: 'select',    options: ['Arbitration', 'Mediation', 'Litigation'] },
+      { key: 'governingLaw',             label: 'Governing Law / Jurisdiction',              type: 'text',      placeholder: 'e.g. California, New York, Texas' },
+      // ── Renewal & extras ─────────────────────────────────────────────────
+      { key: 'renewalTerms',             label: 'Renewal Terms',                            type: 'select',    options: ['Auto-renew', 'Notice required', 'None'] },
+      { key: 'additionalNotes',          label: 'Additional Notes / Special Terms',         type: 'textarea',  optional: true }
+    ]
+  }
+
   , PARTNERSHIP: { key:'PARTNERSHIP', label:'Partnership Agreement', fields:[
     { key:'effectiveDate', label:'Effective Date', type:'date' },
     { key:'partners', label:'Partners', type:'repeatable', itemType:'text' },
