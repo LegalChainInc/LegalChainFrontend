@@ -41,9 +41,9 @@ export default function ContractBuilder() {
   useEffect(() => {
     // Prefer local schemas shipped in src/config/contractSchemas.js (from product sheet).
     try {
-  // Include canonical contract types: STANDARD, SERVICE, NDA, EMPLOYMENT, SALES, LEASE,
+  // Include canonical contract types: STANDARD, SERVICE, NDA, EMPLOYMENT, SALES, LEASE, MSA,
   // and additional investment/IP types: SAFE, EQUITY, IP_LICENSE
-  const allowed = ['STANDARD', 'SERVICE', 'NDA', 'EMPLOYMENT', 'SALES', 'LEASE', 'SAFE', 'EQUITY', 'IP_LICENSE', 'PARTNERSHIP'];
+  const allowed = ['STANDARD', 'SERVICE', 'NDA', 'EMPLOYMENT', 'SALES', 'LEASE', 'MSA', 'SAFE', 'EQUITY', 'IP_LICENSE', 'PARTNERSHIP'];
       const local = Object.values(contractSchemas || {})
         .map((s: any) => ({ key: s.key, displayName: s.label || s.key }))
         .filter((t: any) => allowed.includes(String(t.key).toUpperCase()));
