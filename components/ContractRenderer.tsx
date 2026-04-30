@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { stripMarkdownArtifacts } from '../lib/displayText';
 
 type Reference = { citation?: string; caseName?: string; court?: string; date?: string; url?: string };
 type Section = { heading: string; id: string };
@@ -47,6 +48,7 @@ export default function ContractRenderer({
   warnings?: string[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const displayContract = stripMarkdownArtifacts(contract);
 
   const scrollToSection = (id?: string, heading?: string) => {
     // Try by id first
@@ -94,7 +96,7 @@ export default function ContractRenderer({
                   onClick={() => scrollToSection(s.id, s.heading)}
                   className="text-blue-600 hover:underline text-left"
                 >
-                  {s.heading}
+                  {stripMarkdownArtifacts(s.heading)}
                 </button>
               </li>
             ))}
@@ -111,7 +113,7 @@ export default function ContractRenderer({
         <div className="mb-4 text-sm" aria-label="warnings-list">
           <strong>Warnings:</strong>
           <ul className="list-disc ml-5">
-            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+            {warnings.map((w, i) => <li key={i}>{stripMarkdownArtifacts(w)}</li>)}
           </ul>
         </div>
       )}
@@ -119,9 +121,9 @@ export default function ContractRenderer({
       <div ref={containerRef} className="prose max-w-none">
         {(isHtml || looksLikeHtml(contract)) ? (
           // Minimal sanitization; backend should provide safe HTML when possible
-          <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(contract) }} />
+          <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayContract) }} />
         ) : (
-          <pre className="whitespace-pre-wrap">{contract}</pre>
+          <pre className="whitespace-pre-wrap">{displayContract}</pre>
         )}
       </div>
 
@@ -131,8 +133,8 @@ export default function ContractRenderer({
           <ol className="list-decimal list-inside space-y-2 text-sm">
             {references.map((r, idx) => (
               <li key={idx}>
-                {r.citation || r.caseName}
-                {r.court ? ` — ${r.court}` : ''}{r.date ? ` (${r.date})` : ''}{' '}
+                {stripMarkdownArtifacts(r.citation || r.caseName || '')}
+                {r.court ? ` - ${stripMarkdownArtifacts(r.court)}` : ''}{r.date ? ` (${stripMarkdownArtifacts(r.date)})` : ''}{' '}
                 {r.url && (
                   <a href={r.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
                     link
